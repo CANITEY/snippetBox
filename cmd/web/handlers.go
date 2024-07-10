@@ -2,18 +2,24 @@ package main
 
 import (
 	"caniteySnippetBox/internal/models"
+	"caniteySnippetBox/internal/validator"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/julienschmidt/httprouter"
 )
 
-func (a *application)home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
 
+type snippetCreateForm struct {
+	Title string `form:"title"`
+	Content string `form:"content"`
+	Expires int `form:"expires"`
+	validator.Validator `form:"-"`
+}
+
+func (a *application)home(w http.ResponseWriter, r *http.Request) {
 	snippets, err := a.snippets.Latest()
 	if err != nil {
 		a.serverError(w, err)
@@ -26,7 +32,8 @@ func (a *application)home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *application)snippetView(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	params := httprouter.ParamsFromContext(r.Context())
+	id, err := strconv.Atoi(params.ByName("id"))
 	if err != nil || id < 1 {
 		a.notFound(w)
 		return
@@ -42,17 +49,54 @@ func (a *application)snippetView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	data := a.newTemplateData(r)
 	data.Snippet = snippet
 	a.render(w, http.StatusOK, "view.tmpl", data)
 }
 
-func (a *application)snippetCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", "POST")
-		a.clientError(w, http.StatusMethodNotAllowed)
+func (a *application) snippetCreateForm(w http.ResponseWriter, r *http.Request) {
+	data := a.newTemplateData(r)
+	data.Form = snippetCreateForm{
+		Expires: 365,
+	}
+	a.render(w, http.StatusOK, "create.tmpl", data)
+}
+
+func (a *application)snippetCreatePost(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		a.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	fmt.Fprint(w, "create new snippet")
+	var form snippetCreateForm
+	err = a.decodePostForm(r, &form)
+	if err != nil {
+		a.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	form.CheckField(validator.NotBlank(form.Title), "title", "this field cannot be blank")
+	form.CheckField(validator.MaxChars(form.Title, 100), "title", "this field cannot be more than 100 characters long")
+	form.CheckField(validator.NotBlank(form.Content), "content", "content cannot be blank")
+	form.CheckField(validator.PermittedInt(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
+
+	if !form.Valid() {
+		data := a.newTemplateData(r)
+		data.Form = form
+		a.render(w, http.StatusUnprocessableEntity, "create.tmpl", data)
+		return
+	}
+
+	id, err := a.snippets.Insert(form.Title, form.Content, form.Expires)
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+
+	a.sessionManager.Put(r.Context(), "flash", "snippet created successfully")
+
+	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
+
 }
