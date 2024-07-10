@@ -2,6 +2,7 @@ package main
 
 import (
 	"caniteySnippetBox/internal/models"
+	"crypto/tls"
 	"database/sql"
 	"flag"
 	"html/template"
@@ -62,12 +63,17 @@ func main() {
 		sessionManager,
 	}
 
+	tlsConfig := &tls.Config{
+		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
+	}
+
 
 
 	srv := &http.Server{
 		Addr: *address,
 		ErrorLog: errorLog,
 		Handler: app.routes(),
+		TLSConfig: tlsConfig,
 	}
 	infoLog.Printf("Serving at %s", *address)
 
