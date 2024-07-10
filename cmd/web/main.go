@@ -71,7 +71,7 @@ func main() {
 	}
 	infoLog.Printf("Serving at %s", *address)
 
-	err = srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
+	err = srv.ListenAndServe()
 
 	errorLog.Fatal(err)
 }
