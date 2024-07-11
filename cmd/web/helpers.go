@@ -55,7 +55,7 @@ func (a *application) notFound(w http.ResponseWriter) {
 func (a *application) render(w http.ResponseWriter, status int, page string, data *templateData) {
 	ts, ok := a.templateCache[page]
 	if !ok {
-		err := fmt.Errorf("The template %s does not exist")
+		err := fmt.Errorf("The template %s does not exist", page)
 		a.serverError(w, err)
 		return
 	}
