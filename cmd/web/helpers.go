@@ -9,12 +9,15 @@ import (
 	"time"
 
 	"github.com/go-playground/form/v4"
+	"github.com/justinas/nosurf"
 )
 
 func (a *application) newTemplateData(r *http.Request) *templateData {
 	return &templateData{
 		CurrentYear: time.Now().Year(),
 		Flash: a.sessionManager.PopString(r.Context(), "flash"),
+		IsAuthenticated: a.IsAuthenticated(r),
+		CSRFToken: nosurf.Token(r),
 	}
 }
 
@@ -71,4 +74,9 @@ func (a *application) render(w http.ResponseWriter, status int, page string, dat
 	w.WriteHeader(status)
 
 	buf.WriteTo(w)
+}
+
+func (a *application) IsAuthenticated(r *http.Request) bool {
+	return a.sessionManager.Exists(r.Context(), "id")
+
 }
