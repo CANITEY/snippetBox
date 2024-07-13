@@ -77,6 +77,10 @@ func (a *application) render(w http.ResponseWriter, status int, page string, dat
 }
 
 func (a *application) IsAuthenticated(r *http.Request) bool {
-	return a.sessionManager.Exists(r.Context(), "id")
+	isAuthenticated, ok := r.Context().Value(isAuthenticatedContextKey).(bool)
+	if !ok {
+		return false
+	}
 
+	return isAuthenticated
 }
