@@ -288,7 +288,20 @@ func (a *application) accountPasswordUpdatePost(w http.ResponseWriter, r *http.R
 		a.render(w, http.StatusUnprocessableEntity, "password.tmpl", data)
 		return
 	}
+	id := a.sessionManager.GetInt(r.Context(), "id")
+	if err := a.users.PasswordUpdate(id, form.CurrentPassword, form.NewPassword); err != nil {
+		if errors.Is(err, models.ErrInvalidCredentials) {
+			form.AddNonFieldError("Password is wrong")
+			data := a.newTemplateData(r)
+			data.Form = form
+			a.render(w, http.StatusUnprocessableEntity, "password.tmpl", data)
+			return
+		} else {
+			a.serverError(w, err)
+			return
+		}
+	}
 
-
-
+	a.sessionManager.Put(r.Context(), "flash", "Password changed successfully")
+	http.Redirect(w, r, "/account/view", http.StatusSeeOther)
 }
