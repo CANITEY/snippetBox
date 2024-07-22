@@ -43,7 +43,11 @@ func (a *application) decodePostForm(r *http.Request, dst any) error {
 
 func (a *application) serverError(w http.ResponseWriter, err error) {
 	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
-	a.errorLog.Println(trace)
+	a.errorLog.Output(2, trace)
+
+	if a.debug {
+		http.Error(w, trace, http.StatusInternalServerError)
+	}
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 

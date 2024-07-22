@@ -22,7 +22,7 @@ func noSurf(next http.Handler) http.Handler {
 
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Security-Policy", "default-src 'self'; style-src 'self' fonts.googleapis.com; font- src fonts.gstatic.com")
+		w.Header().Add("Content-Security-Policy", "default-src 'self'; style-src 'self' fonts.googleapis.com; font-src fonts.gstatic.com")
 		w.Header().Add("X-Content-Type-Options", "nosniff")
 		w.Header().Add("X-Frame-Options", "deny")
 		w.Header().Add("X-XSS-Protection", "0")
@@ -82,7 +82,7 @@ func (a *application) authenticate(next http.Handler) http.Handler {
 		}
 
 		if exists {
-			ctx := context.WithValue(r.Context(), isAuthenticatedContextKey, "true")
+			ctx := context.WithValue(r.Context(), isAuthenticatedContextKey, true)
 			r = r.WithContext(ctx)
 		}
 

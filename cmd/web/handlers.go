@@ -32,6 +32,23 @@ type userLoginForm struct {
 	validator.Validator `form:"-"`
 }
 
+type accountPasswordUpdateForm struct {
+	CurrentPassword string `form:"currentPassword"`
+	NewPassword string `form:"newPassword"`
+	NewPasswordConfirmation string `form:"newPasswordConfirmation"`
+	validator.Validator `form:"-"`
+}
+
+func (a *application)ping(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+}
+
+func (a *application)about (w http.ResponseWriter, r *http.Request) {
+	data := a.newTemplateData(r)
+	a.render(w, http.StatusOK, "about.tmpl", data)
+}
+
 func (a *application)home(w http.ResponseWriter, r *http.Request) {
 	snippets, err := a.snippets.Latest()
 	if err != nil {
@@ -203,7 +220,13 @@ func (a *application) userLoginPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.sessionManager.Put(r.Context(), "id", id)
-	http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
+	a.sessionManager.Put(r.Context(), "isAuthenticated", true)
+	err = a.sessionManager.RenewToken(r.Context())
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/account/view", http.StatusSeeOther)
 
 }
 
@@ -218,6 +241,54 @@ func (a *application) userLogoutPost(w http.ResponseWriter, r *http.Request) {
 	a.sessionManager.Put(r.Context(), "flash", "You have been logged out successfully")
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+
+
+}
+
+func (a *application) accountView(w http.ResponseWriter, r *http.Request) {
+	id := a.sessionManager.GetInt(r.Context(), "id")
+	if id == 0 {
+		http.Redirect(w, r, "/user/login", http.StatusTemporaryRedirect)
+		return
+	}
+	user, err := a.users.Get(id)
+	if err != nil {
+		a.serverError(w, err)
+	}
+
+	data := a.newTemplateData(r)
+	data.User = user
+	a.render(w, http.StatusOK, "account.tmpl", data)
+
+}
+
+func (a *application) accountPasswordUpdate(w http.ResponseWriter, r *http.Request) {
+	data := a.newTemplateData(r)
+	data.Form = accountPasswordUpdateForm{}
+
+	a.render(w, http.StatusOK, "password.tmpl", data)
+}
+
+func (a *application) accountPasswordUpdatePost(w http.ResponseWriter, r *http.Request) {
+	form := accountPasswordUpdateForm{}
+	if err := a.decodePostForm(r, &form); err != nil {
+		a.serverError(w, err)
+	}
+
+	form.CheckField(validator.NotBlank(form.CurrentPassword), "currentPassword", "field must not be empty")
+	form.CheckField(validator.MinChars(form.NewPassword, 8), "newPassword", "new password must not be less than 8 digits")
+	form.CheckField(validator.NotBlank(form.NewPassword), "newPassword", "field must not be empty")
+	form.CheckField(validator.NotBlank(form.NewPasswordConfirmation), "newPasswordConfirmation", "field must not be empty")
+	form.CheckField(validator.Equal(form.NewPassword, form.NewPasswordConfirmation), "newPasswordConfirmation", "Passwords doesn't match")
+
+	if !form.Valid() {
+		data := a.newTemplateData(r)
+		data.Form = form
+
+		a.render(w, http.StatusUnprocessableEntity, "password.tmpl", data)
+		return
+	}
+
 
 
 }

@@ -21,6 +21,8 @@ func (a *application) routes() http.Handler {
 	dynamic := alice.New(a.sessionManager.LoadAndSave, noSurf, a.authenticate)
 
 	router.Handler(http.MethodGet, "/", dynamic.ThenFunc(a.home))
+	router.Handler(http.MethodGet, "/about", dynamic.ThenFunc(a.about))
+	router.Handler(http.MethodGet, "/ping", dynamic.ThenFunc(a.ping))
 	router.Handler(http.MethodGet, "/snippet/view/:id", dynamic.ThenFunc(a.snippetView))
 	router.Handler(http.MethodGet, "/user/signup", dynamic.ThenFunc(a.userSignup))
 	router.Handler(http.MethodPost, "/user/signup", dynamic.ThenFunc(a.userSignupPost))
@@ -30,6 +32,9 @@ func (a *application) routes() http.Handler {
 	protected := dynamic.Append(a.requireAuthentication)
 	router.Handler(http.MethodGet, "/snippet/create", protected.ThenFunc(a.snippetCreateForm))
 	router.Handler(http.MethodPost, "/snippet/create", protected.ThenFunc(a.snippetCreatePost))
+	router.Handler(http.MethodGet, "/account/view", protected.ThenFunc(a.accountView))
+	router.Handler(http.MethodGet, "/account/password/update", protected.ThenFunc(a.accountPasswordUpdate))
+	router.Handler(http.MethodPost, "/account/password/update", protected.ThenFunc(a.accountPasswordUpdatePost))
 	router.Handler(http.MethodPost, "/user/logout", protected.ThenFunc(a.userLogoutPost))
 	standard := alice.New(a.recoverPanic, a.logRequest, secureHeaders)
 
